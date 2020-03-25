@@ -1,0 +1,4 @@
+certstream==1.11
+six==1.14.0
+termcolor==1.1.0
+websocket-client==0.57.0
