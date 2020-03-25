@@ -10,6 +10,7 @@ import argparse
 import json
 import datetime
 from pathlib import Path
+import requests
 
 VERSION = '1'
 
@@ -70,16 +71,35 @@ def process_message(domain, message):
     return result
 
 
-def send_to_slack(message):
+def sendslack(slackhook, domain, result, shodan_results):
     """Send message to Slack"""
-    try:
-        sc.api_call(
-            "chat.postMessage",
-            channel="#" + channel,
-            text=message
-        )
-    except:
-        print("Debug: Error in send_to_slack.")
+
+    slack_data = {"attachments": [{
+        "fallback": ":lock: certificate changes have been detected for: {0}\
+                                        \n```{1}```\n".format(str(domain), json.dumps(result, indent=4)),
+        "color": "#7236a6",
+        "author_name": "blackcert",
+        "author_link": "https://github.com/d1vious/blackcert",
+        "title": ":lock: certificate changes have been detected for {0}".format(str(domain)),
+        "mrkdwn_in": ["text", "title", "pretext", "fields"],
+        "fields": [
+            {
+                "title": "cert material",
+                "value": "```{0}```".format(json.dumps(result, indent=4)),
+                "short": False
+            }
+        ]
+    }]}
+
+    response = requests.post(
+        slackhook, data=json.dumps(slack_data),
+        headers={'Content-Type': 'application/json'}
+    )
+
+    if response.status_code != 200:
+        raise ValueError(
+            'Request to slack returned an error %s, the response is:\n%s'
+            % (response.status_code, response.text))
 
 
 def callback(message, context):
@@ -94,9 +114,10 @@ def callback(message, context):
         for domain in all_domains:
             for keyword in keywords:
                 if domain.find(keyword) != -1:
-                    #log.info("matched domain: {0}".format(domain))
+                    log.info("matched domain: {0} for keyword: {1}".format(domain, keyword))
                     result = process_message(domain, message)
                     print(json.dumps(result, indent=2))
+                    sendslack(config['hook'], domain, result, '')
                     # write result out
 
 def on_open(instance):
