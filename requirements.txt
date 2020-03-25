@@ -1,9 +1,13 @@
 certifi==2019.11.28
 certstream==1.11
 chardet==3.0.4
+click==7.1.1
+click-plugins==1.1.1
+colorama==0.4.3
 idna==2.9
 requests==2.23.0
 six==1.14.0
 termcolor==1.1.0
 urllib3==1.25.8
 websocket-client==0.57.0
+XlsxWriter==1.2.8

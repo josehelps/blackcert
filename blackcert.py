@@ -9,8 +9,9 @@ import certstream
 import argparse
 import json
 import datetime
-from pathlib import Path
 import requests
+from pathlib import Path
+
 
 VERSION = '1'
 
@@ -59,24 +60,22 @@ def perform_lookup(config_key, config_value):
 
 
 def process_message(domain, message):
-    #log.info(json.dumps(message, indent=2))
     result = {}
     result['timestamp'] = str(datetime.datetime.utcnow().isoformat())
     result['serial'] = message['data']['leaf_cert']['serial_number']
     result['domain'] = domain
-    result['subject'] = message['data']['leaf_cert']['subject']
-    result['shodan_results'] = ''
+    result['subject'] = message['data']['leaf_cert']['subject']['aggregated']
     result['CA'] = [c['subject']['CN'] for c in message['data']['chain']]
     result['CA_serials'] = [c['serial_number'] for c in message['data']['chain']]
     return result
 
 
-def sendslack(slackhook, domain, result, shodan_results):
+def sendslack(slackhook, domain, result):
     """Send message to Slack"""
 
     slack_data = {"attachments": [{
         "fallback": ":lock: certificate changes have been detected for: {0}\
-                                        \n```{1}```\n".format(str(domain), json.dumps(result, indent=4)),
+                                        \n```{1}```\n".format(str(domain), json.dumps(result, indent=2)),
         "color": "#7236a6",
         "author_name": "blackcert",
         "author_link": "https://github.com/d1vious/blackcert",
@@ -85,7 +84,7 @@ def sendslack(slackhook, domain, result, shodan_results):
         "fields": [
             {
                 "title": "cert material",
-                "value": "```{0}```".format(json.dumps(result, indent=4)),
+                "value": "```{0}```".format(json.dumps(result, indent=2)),
                 "short": False
             }
         ]
@@ -100,6 +99,13 @@ def sendslack(slackhook, domain, result, shodan_results):
         raise ValueError(
             'Request to slack returned an error %s, the response is:\n%s'
             % (response.status_code, response.text))
+
+def write_results(result):
+    try:
+        with open(OUTPUT_PATH, 'a') as outfile:
+            json.dump(result, outfile)
+    except Exection as e:
+        log.error("writing result file: {0}".format(str(e)))
 
 
 def callback(message, context):
@@ -116,9 +122,9 @@ def callback(message, context):
                 if domain.find(keyword) != -1:
                     log.info("matched domain: {0} for keyword: {1}".format(domain, keyword))
                     result = process_message(domain, message)
-                    print(json.dumps(result, indent=2))
-                    sendslack(config['hook'], domain, result, '')
-                    # write result out
+                    # print(json.dumps(result, indent=2))
+                    sendslack(config['hook'], domain, result)
+                    write_results(result)
 
 def on_open(instance):
     # Instance is the CertStreamClient instance that was opened
@@ -134,6 +140,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="starts listening for newly registered certificates and sends slack alerts when it matches")
     parser.add_argument("-c", "--config", required=False, default="config.ini",
                         help="path to the configuration file of blackcert")
+    parser.add_argument("-o", "--output", required=False, default="results.log",
+                        help="path to a JSON log file of the matches")
     parser.add_argument("-v", "--version", default=False, action="store_true", required=False,
                         help="shows current blackcert version")
 
@@ -141,6 +149,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     ARG_VERSION = args.version
     config = args.config
+    OUTPUT_PATH = args.output
 
     print("""
 _     _            _                 _   
@@ -168,5 +177,5 @@ _     _            _                 _
         log.info("version: {0}".format(VERSION))
         sys.exit(0)
     log.info("alerting to keywords: {0}".format(config['keywords']))
-    certstream.listen_for_events(callback, on_open=on_open, on_error=on_error, url=config['certstream_url'])
-
+    # certstream.listen_for_events(callback, on_open=on_open, on_error=on_error, url=config['certstream_url'])
+    certstream.listen_for_events(callback, url=config['certstream_url'])
