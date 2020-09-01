@@ -1,6 +1,6 @@
 ![](docs/blackcert_logo.png)
 # blackcert 📓
-checks certificate transparency logs for a keyword collects any certificate changes for this keyword and also checks if any domain changes with that keyword look like a phishing domain. 
+Blackcert monitors [Certificate Transparency Logs](https://en.wikipedia.org/wiki/Certificate_Transparency) for a keyword. Blackcert collects any certificate changes for this keyword and also checks if any domain changes with that keyword look like a phishing domain. 
 
 # Purpose
 Developed to proactively monitor for actors registering certificates for a domain for phishing purposes. Although I have found it useful/used for:
