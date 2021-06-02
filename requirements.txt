@@ -11,6 +11,6 @@ requests==2.23.0
 six==1.14.0
 termcolor==1.1.0
 tld==0.11.11
-urllib3==1.25.8
+urllib3==1.26.5
 websocket-client==0.57.0
 XlsxWriter==1.2.8
